@@ -35,6 +35,13 @@ class Dependency
      */
     private $version;
 
+    /**
+     * @var boolean $isDev
+     *
+     * @ORM\Column(name="isDev", type="boolean", options={"default":false})
+     */
+    private $isDev;
+
 
     /**
      * Get id
@@ -93,5 +100,28 @@ class Dependency
     {
         return $this->version;
     }
-}
 
+    /**
+     * Set isDev
+     *
+     * @param boolean $isDev
+     *
+     * @return Dependency
+     */
+    public function setIsDev($isDev)
+    {
+        $this->isDev = $isDev;
+
+        return $this;
+    }
+
+    /**
+     * Get isDev
+     *
+     * @return boolean
+     */
+    public function isDev()
+    {
+        return $this->isDev;
+    }
+}
