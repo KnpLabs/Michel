@@ -19,4 +19,28 @@ class FeatureContext implements Context
     public function __construct()
     {
     }
+
+    /**
+     * @Given I have an empty database
+     */
+    public function iHaveAnEmptyDatabase()
+    {
+        throw new PendingException();
+    }
+
+    /**
+     * @When I run the import command
+     */
+    public function iRunTheImportCommand()
+    {
+        throw new PendingException();
+    }
+
+    /**
+     * @Then I should have data in the database
+     */
+    public function iShouldHaveDataInTheDatabase()
+    {
+        throw new PendingException();
+    }
 }
