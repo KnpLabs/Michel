@@ -2,7 +2,6 @@
 
 namespace AppBundle\Command;
 
-use AppBundle\Entity\Author;
 use AppBundle\Entity\Dependency;
 use AppBundle\Entity\Package;
 use AppBundle\Entity\Vendor;
@@ -17,15 +16,21 @@ class ImportDataCommand extends ContainerAwareCommand
 {
     const PACKAGES_LIST_API = "https://packagist.org/packages/list.json";
     const PACKAGE_INFO_API = "https://packagist.org/p/";
+    private $em;
 
     protected function configure()
     {
         $this
             ->setName('import:data')
-            ->setDescription('...')
-            ->addArgument('argument', InputArgument::OPTIONAL, 'Argument description')
-            ->addOption('option', null, InputOption::VALUE_NONE, 'Option description')
+            ->setDescription('Import data from packagist')
         ;
+    }
+
+    protected function initialize(InputInterface $input, OutputInterface $output)
+    {
+        parent::initialize($input, $output);
+        $this->em = $this->getContainer()->get('doctrine')->getManager();
+        $this->cleanUpDB();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -40,12 +45,16 @@ class ImportDataCommand extends ContainerAwareCommand
 
         foreach ($packageList as $package)
         {
-            if (5 === $iTest) {
+            if (500 === $iTest) {
                 break;
+            }
+            // Leave Packagist alone!
+            if (0 === $iTest%250) {
+                sleep(10);
             }
             $iTest++;
 
-            $this->setPackageInfo($package);
+            $this->setData($package);
 
             $progress->advance();
         }
@@ -67,12 +76,16 @@ class ImportDataCommand extends ContainerAwareCommand
     /**
      * @param $package
      */
-    private function setPackageInfo($package)
+    private function setData($package)
     {
-        $em = $this->getContainer()->get('doctrine')->getManager();
-        $response = json_decode(file_get_contents(self::PACKAGE_INFO_API.$package.'.json'));
+        $json = @file_get_contents(self::PACKAGE_INFO_API.$package.'.json');
+        if (false === $json) {
+            return null;
+        }
+        $response = json_decode($json);
         $packageInfos = $response;
 
+        //@TODO: if more RAM, add dependencies and vendor to an array to avoid DB requests
         foreach ($packageInfos as $packageInfo)
         {
             foreach ($packageInfo->$package as $info)
@@ -83,45 +96,74 @@ class ImportDataCommand extends ContainerAwareCommand
                 $package->setType($info->type);
                 $package->setUid($info->uid);
                 $package->setVersion($info->version);
-                $em->persist($package);
-                $em->flush();
 
-                var_dump($package);
-
-                $vendor = new Vendor();
-                $vendor->setName(explode('/', $info->name)[0]);
-                var_dump($vendor);
-
-                foreach ($info->authors as $package_author)
-                {
-                    $author = new Author();
-                    $author->setName($package_author->name);
-                    $author->setEmail($package_author->email);
-                    @$author->setHomepage($package_author->homepage);
-                    var_dump($author);
+                $vendorName = explode('/', $info->name)[0];
+                $vendorInDB = $this->em->getRepository('AppBundle:Vendor')->findOneByName($vendorName);
+                if (1 === count($vendorInDB)) {
+                    $package->setVendor($vendorInDB);
+                } else {
+                    $vendor = new Vendor();
+                    $vendor->setName($vendorName);
+                    $package->setVendor($vendor);
                 }
 
                 if (isset($info->require)) {
                     foreach ($info->require as $name => $version) {
-                        $dependency = new Dependency();
-                        $dependency->setName($name);
-                        $dependency->setVersion($version);
-                        $dependency->setIsDev(false);
-                        var_dump($dependency);
+                        $dependencyInDB = $this->em->getRepository('AppBundle:Dependency')->findOneBy([
+                            'name' => $name,
+                            'version' => $version,
+                            'isDev' => false,
+                        ]);
+                        if (1 === count($dependencyInDB)) {
+                            $package->addDependency($dependencyInDB);
+                        } else {
+                            $dependency = new Dependency();
+                            $dependency->setName($name);
+                            $dependency->setVersion($version);
+                            $dependency->setIsDev(false);
+                            $package->addDependency($dependency);
+                        }
                     }
                 }
                 if (isset($info->{'require-dev'})) {
                     foreach ($info->{'require-dev'} as $name => $version) {
-                        $dependency = new Dependency();
-                        $dependency->setName($name);
-                        $dependency->setVersion($version);
-                        $dependency->setIsDev(true);
-                        var_dump($dependency);
+                        $dependencyInDB = $this->em->getRepository('AppBundle:Dependency')->findOneBy([
+                            'name' => $name,
+                            'version' => $version,
+                            'isDev' => true,
+                        ]);
+                        if (1 === count($dependencyInDB)) {
+                            $package->addDependency($dependencyInDB);
+                        } else {
+                            $dependency = new Dependency();
+                            $dependency->setName($name);
+                            $dependency->setVersion($version);
+                            $dependency->setIsDev(true);
+                            $package->addDependency($dependency);
+                        }
                     }
                 }
 
+                $this->em->persist($package);
+                $this->em->flush();
             }
         }
     }
 
+    private function cleanUpDB()
+    {
+        $entities = $this->em->getRepository('AppBundle:Dependency')->findAll();
+        foreach ($entities as $entity) {
+            $this->em->remove($entity);
+        }
+        $entities = $this->em->getRepository('AppBundle:Package')->findAll();
+        foreach ($entities as $entity) {
+            $this->em->remove($entity);
+        }
+        $entities = $this->em->getRepository('AppBundle:Vendor')->findAll();
+        foreach ($entities as $entity) {
+            $this->em->remove($entity);
+        }
+        $this->em->flush();
+    }
 }

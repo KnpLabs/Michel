@@ -13,6 +13,11 @@ use Doctrine\ORM\Mapping as ORM;
 class Vendor
 {
     /**
+     * @ORM\OneToMany(targetEntity="Package", mappedBy="author")
+     */
+    private $packages;
+
+    /**
      * @var int
      *
      * @ORM\Column(name="id", type="integer")
@@ -28,11 +33,18 @@ class Vendor
      */
     private $name;
 
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->packages = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
      *
-     * @return int
+     * @return integer
      */
     public function getId()
     {
@@ -62,5 +74,38 @@ class Vendor
     {
         return $this->name;
     }
-}
 
+    /**
+     * Add package
+     *
+     * @param \AppBundle\Entity\Package $package
+     *
+     * @return Vendor
+     */
+    public function addPackage(\AppBundle\Entity\Package $package)
+    {
+        $this->packages[] = $package;
+
+        return $this;
+    }
+
+    /**
+     * Remove package
+     *
+     * @param \AppBundle\Entity\Package $package
+     */
+    public function removePackage(\AppBundle\Entity\Package $package)
+    {
+        $this->packages->removeElement($package);
+    }
+
+    /**
+     * Get packages
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getPackages()
+    {
+        return $this->packages;
+    }
+}

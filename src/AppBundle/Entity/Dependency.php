@@ -13,6 +13,11 @@ use Doctrine\ORM\Mapping as ORM;
 class Dependency
 {
     /**
+     * @ORM\ManyToMany(targetEntity="Package", mappedBy="dependencies", cascade={"persist"})
+     */
+    private $packages;
+
+    /**
      * @var int
      *
      * @ORM\Column(name="id", type="integer")
@@ -42,11 +47,18 @@ class Dependency
      */
     private $isDev;
 
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->packages = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
      *
-     * @return int
+     * @return integer
      */
     public function getId()
     {
@@ -123,5 +135,39 @@ class Dependency
     public function isDev()
     {
         return $this->isDev;
+    }
+
+    /**
+     * Add package
+     *
+     * @param \AppBundle\Entity\Package $package
+     *
+     * @return Dependency
+     */
+    public function addPackage(\AppBundle\Entity\Package $package)
+    {
+        $this->packages[] = $package;
+
+        return $this;
+    }
+
+    /**
+     * Remove package
+     *
+     * @param \AppBundle\Entity\Package $package
+     */
+    public function removePackage(\AppBundle\Entity\Package $package)
+    {
+        $this->packages->removeElement($package);
+    }
+
+    /**
+     * Get packages
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getPackages()
+    {
+        return $this->packages;
     }
 }

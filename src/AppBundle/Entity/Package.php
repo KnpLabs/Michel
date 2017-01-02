@@ -13,6 +13,18 @@ use Doctrine\ORM\Mapping as ORM;
 class Package
 {
     /**
+     * @ORM\ManyToMany(targetEntity="Dependency", inversedBy="packages", cascade={"persist"})
+     * @ORM\JoinTable(name="packages_dependencies")
+     */
+    private $dependencies;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="Vendor", inversedBy="packages", cascade={"persist"})
+     * @ORM\JoinColumn(name="vendor_id", referencedColumnName="id")
+     */
+    private $vendor;
+
+    /**
      * @var int
      *
      * @ORM\Column(name="id", type="integer")
@@ -56,11 +68,19 @@ class Package
      */
     private $uid;
 
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->authors = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->dependencies = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
      *
-     * @return int
+     * @return integer
      */
     public function getId()
     {
@@ -166,7 +186,7 @@ class Package
     /**
      * Set uid
      *
-     * @param string $uid
+     * @param integer $uid
      *
      * @return Package
      */
@@ -180,11 +200,68 @@ class Package
     /**
      * Get uid
      *
-     * @return string
+     * @return integer
      */
     public function getUid()
     {
         return $this->uid;
     }
-}
 
+    /**
+     * Add dependency
+     *
+     * @param \AppBundle\Entity\Dependency $dependency
+     *
+     * @return Package
+     */
+    public function addDependency(\AppBundle\Entity\Dependency $dependency)
+    {
+        $this->dependencies[] = $dependency;
+
+        return $this;
+    }
+
+    /**
+     * Remove dependency
+     *
+     * @param \AppBundle\Entity\Dependency $dependency
+     */
+    public function removeDependency(\AppBundle\Entity\Dependency $dependency)
+    {
+        $this->dependencies->removeElement($dependency);
+    }
+
+    /**
+     * Get dependencies
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getDependencies()
+    {
+        return $this->dependencies;
+    }
+
+    /**
+     * Set vendor
+     *
+     * @param \AppBundle\Entity\Vendor $vendor
+     *
+     * @return Package
+     */
+    public function setVendor(\AppBundle\Entity\Vendor $vendor = null)
+    {
+        $this->vendor = $vendor;
+
+        return $this;
+    }
+
+    /**
+     * Get vendor
+     *
+     * @return \AppBundle\Entity\Vendor
+     */
+    public function getVendor()
+    {
+        return $this->vendor;
+    }
+}
