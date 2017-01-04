@@ -4,6 +4,40 @@ parameters:
 #    parameter_name: value
 
 services:
-#    service_name:
-#        class: AppBundle\Directory\ClassName
-#        arguments: ["@another_service_name", "plain_value", "%parameter_name%"]
+    app.packagist.client:
+        class: AppBundle\Packagist\Client
+        public: true
+
+    app.entity.package_repository:
+        class: Doctrine\Common\Persistence\ObjectRepository
+        factory:
+            - "@doctrine"
+            - "getRepository"
+        arguments:
+            - AppBundle\Entity\Package
+        public: false
+
+    app.provider.package.doctrine:
+        class: AppBundle\Provider\Package\Doctrine
+        arguments: ["@app.entity.package_repository"]
+        public: false
+
+    app.provider.package.factory:
+        class: AppBundle\Provider\Package\Factory
+        public: false
+
+    app.provider.package.chain:
+        class: AppBundle\Provider\Package\Chain
+        arguments:
+            - ["@app.provider.package.doctrine", "@app.provider.package.factory"]
+        public: false
+
+    app.provider.package.cache:
+        class: AppBundle\Provider\Package\Cache
+        arguments:
+            - "@app.provider.package.chain"
+        public: false
+
+    app.provider.package:
+        alias: app.provider.package.cache
+        public: true

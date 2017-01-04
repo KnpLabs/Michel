@@ -2,20 +2,18 @@
 
 namespace AppBundle\Command;
 
-use AppBundle\Entity\Dependency;
 use AppBundle\Entity\Package;
-use AppBundle\Entity\Vendor;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use Symfony\Component\Config\Definition\Exception\Exception;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Helper\ProgressBar;
+use Buzz;
 
 class ImportDataCommand extends ContainerAwareCommand
 {
-    const PACKAGES_LIST_API = "https://packagist.org/packages/list.json";
-    const PACKAGE_INFO_API = "https://packagist.org/p/";
     private $em;
 
     protected function configure()
@@ -30,138 +28,92 @@ class ImportDataCommand extends ContainerAwareCommand
     {
         parent::initialize($input, $output);
         $this->em = $this->getContainer()->get('doctrine')->getManager();
-        $this->cleanUpDB();
+        //$this->cleanUpDB();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $packageList = $this->getPackagesList();
+        $packageList = $this->getContainer()->get('app.packagist.client')->getPackagesList();
         $nb_packages = count($packageList);
 
         $progress = new ProgressBar($output, $nb_packages);
         $progress->start();
+        $output->writeln('');
 
-        $iTest = 0;
-
-        foreach ($packageList as $package)
-        {
-            if (500 === $iTest) {
-                break;
+        $tempI = 0;
+        foreach ($packageList as $packageName) {
+            // Only use composer/composer package for MVP @TODO:remove this condition when ready
+//            if ('composer/composer' !== $packageName){continue;}
+            $tempI++;
+            if ($tempI > 10) {
+                continue;
             }
-            // Leave Packagist alone!
-            if (0 === $iTest%250) {
-                sleep(10);
-            }
-            $iTest++;
 
-            $this->setData($package);
+            $package = $this->getContainer()->get('app.provider.package')->get($packageName);
+
+            if (null !== $package) {
+                $this->addPackage($package);
+
+                $this->em->persist($package);
+                $this->em->flush();
+            }
 
             $progress->advance();
         }
+
         $progress->finish();
         $output->writeln('');
     }
 
     /**
-     * @return array
-     */
-    private function getPackagesList()
-    {
-        $response = json_decode(file_get_contents(self::PACKAGES_LIST_API));
-        $packageList = $response->packageNames;
-
-        return $packageList;
-    }
-
-    /**
      * @param $package
      */
-    private function setData($package)
+    private function addPackage(Package $package)
     {
-        $json = @file_get_contents(self::PACKAGE_INFO_API.$package.'.json');
-        if (false === $json) {
-            return null;
-        }
-        $response = json_decode($json);
-        $packageInfos = $response;
-
-        //@TODO: if more RAM, add dependencies and vendor to an array to avoid DB requests
-        foreach ($packageInfos as $packageInfo)
+        // Only if the requirement is a "package" (exclude php, etc.)
+        if (false !== strpos($package->getName(), '/'))
         {
-            foreach ($packageInfo->$package as $info)
+            $packageInfo = $this->getContainer()->get('app.packagist.client')->getPackageInfo($package->getName());
+
+            if (isset($packageInfo['require']))
             {
-                $package = new Package();
-                $package->setName($info->name);
-                $package->setDescription($info->description);
-                $package->setType($info->type);
-                $package->setUid($info->uid);
-                $package->setVersion($info->version);
-
-                $vendorName = explode('/', $info->name)[0];
-                $vendorInDB = $this->em->getRepository('AppBundle:Vendor')->findOneByName($vendorName);
-                if (1 === count($vendorInDB)) {
-                    $package->setVendor($vendorInDB);
-                } else {
-                    $vendor = new Vendor();
-                    $vendor->setName($vendorName);
-                    $package->setVendor($vendor);
-                }
-
-                if (isset($info->require)) {
-                    foreach ($info->require as $name => $version) {
-                        $dependencyInDB = $this->em->getRepository('AppBundle:Dependency')->findOneBy([
-                            'name' => $name,
-                            'version' => $version,
-                            'isDev' => false,
-                        ]);
-                        if (1 === count($dependencyInDB)) {
-                            $package->addDependency($dependencyInDB);
-                        } else {
-                            $dependency = new Dependency();
-                            $dependency->setName($name);
-                            $dependency->setVersion($version);
-                            $dependency->setIsDev(false);
-                            $package->addDependency($dependency);
+                foreach ($packageInfo['require'] as $requirement => $version)
+                {
+                    if (false !== strpos($requirement, '/'))
+                    {
+                        $dependency = $this->getContainer()->get('app.provider.package')->get($requirement);
+                        if (false === $package->getMyRequirements()->contains($dependency)) {
+                            $package->getMyRequirements()->add($dependency);
                         }
+
+                        $this->addPackage($dependency);
                     }
                 }
-                if (isset($info->{'require-dev'})) {
-                    foreach ($info->{'require-dev'} as $name => $version) {
-                        $dependencyInDB = $this->em->getRepository('AppBundle:Dependency')->findOneBy([
-                            'name' => $name,
-                            'version' => $version,
-                            'isDev' => true,
-                        ]);
-                        if (1 === count($dependencyInDB)) {
-                            $package->addDependency($dependencyInDB);
-                        } else {
-                            $dependency = new Dependency();
-                            $dependency->setName($name);
-                            $dependency->setVersion($version);
-                            $dependency->setIsDev(true);
-                            $package->addDependency($dependency);
+            }
+
+            if (isset($packageInfo['require-dev']))
+            {
+                foreach ($packageInfo['require-dev'] as $requirement => $version)
+                {
+                    if (false !== strpos($requirement, '/'))
+                    {
+                        $dependency = $this->getContainer()->get('app.provider.package')->get($requirement);
+                        if (false === $package->getMyDevRequirements()->contains($dependency)) {
+                            $package->getMyDevRequirements()->add($dependency);
                         }
+
+                        $this->addPackage($dependency);
                     }
                 }
-
-                $this->em->persist($package);
-                $this->em->flush();
             }
         }
     }
 
     private function cleanUpDB()
     {
-        $entities = $this->em->getRepository('AppBundle:Dependency')->findAll();
-        foreach ($entities as $entity) {
-            $this->em->remove($entity);
-        }
         $entities = $this->em->getRepository('AppBundle:Package')->findAll();
-        foreach ($entities as $entity) {
-            $this->em->remove($entity);
-        }
-        $entities = $this->em->getRepository('AppBundle:Vendor')->findAll();
-        foreach ($entities as $entity) {
+        foreach ($entities as $entity)
+        {
             $this->em->remove($entity);
         }
         $this->em->flush();
