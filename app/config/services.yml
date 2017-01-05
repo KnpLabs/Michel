@@ -6,6 +6,7 @@ parameters:
 services:
     app.packagist.client:
         class: AppBundle\Packagist\Client
+        arguments: ["@buzz.browser"]
         public: true
 
     app.entity.package_repository:
@@ -41,3 +42,7 @@ services:
     app.provider.package:
         alias: app.provider.package.cache
         public: true
+
+    buzz.browser:
+        class: Buzz\Browser
+        public: false
