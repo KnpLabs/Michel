@@ -19,10 +19,10 @@ class Client
      */
     public function getPackagesList()
     {
-        $json_response = $this->browser->get(self::PACKAGES_LIST_API)->getContent();
-        $response = json_decode($json_response, true);
+        $json_data = $this->browser->get(self::PACKAGES_LIST_API)->getContent();
+        $data = json_decode($json_data, true);
 
-        return $response['packageNames'];
+        return $data['packageNames'];
     }
 
     /**
@@ -31,11 +31,13 @@ class Client
     public function getPackageInfo($packageName)
     {
         $packageInfo = null;
-        $json_response = $this->browser->get(self::PACKAGE_INFO_API.$packageName.'.json')->getContent();
-        $response = json_decode($json_response, true);
+        $response = $this->browser->get(self::PACKAGE_INFO_API.$packageName.'.json');
 
-        if (!isset($response['error'])) {
-            $packageInfo = current($response['packages'][$packageName]);
+        if ($response->isOk()) {
+            $json_data = $response->getContent();
+            $data = json_decode($json_data, true);
+
+            $packageInfo = current($data['packages'][$packageName]);
         }
 
         return $packageInfo;
