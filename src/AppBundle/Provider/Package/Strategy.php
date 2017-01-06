@@ -5,7 +5,7 @@ namespace AppBundle\Provider\Package;
 use AppBundle\Provider\Package;
 use AppBundle\Entity as Model;
 
-class Chain implements Package
+class Strategy implements Package
 {
     private $providers;
 

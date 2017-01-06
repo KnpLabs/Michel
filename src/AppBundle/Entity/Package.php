@@ -43,6 +43,13 @@ class Package
     private $id;
 
     /**
+     * @var string
+     *
+     * @ORM\Column(name="description", type="text", nullable=true)
+     */
+    private $description;
+
+    /**
      * Package constructor.
      * @param string $name
      */
@@ -67,6 +74,25 @@ class Package
     public function getName()
     {
         return $this->id;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
+    /**
+     * @param $description
+     * @return $this
+     */
+    public function setDescription($description)
+    {
+        $this->description = $description;
+
+        return $this;
     }
 
     /**

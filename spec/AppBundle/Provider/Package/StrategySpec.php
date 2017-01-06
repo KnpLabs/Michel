@@ -2,12 +2,12 @@
 
 namespace spec\AppBundle\Provider\Package;
 
-use AppBundle\Provider\Package\Chain;
+use AppBundle\Provider\Package\Strategy;
 use PhpSpec\ObjectBehavior;
 use Prophecy\Argument;
 use AppBundle\Provider\Package;
 
-class ChainSpec extends ObjectBehavior
+class StrategySpec extends ObjectBehavior
 {
     function let(Package $provider1, Package $provider2, Package $provider3)
     {
@@ -16,7 +16,7 @@ class ChainSpec extends ObjectBehavior
 
     function it_is_initializable()
     {
-        $this->shouldHaveType(Chain::class);
+        $this->shouldHaveType(Strategy::class);
     }
 
     function it_will_return_null_if_no_provider_provides_a_package($provider1, $provider2, $provider3)

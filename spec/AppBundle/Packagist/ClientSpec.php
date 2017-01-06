@@ -23,9 +23,9 @@ class ClientSpec extends ObjectBehavior
     function it_must_return_a_package_list($browser, Response $response)
     {
         $browser->get("https://packagist.org/packages/list.json")->willReturn($response);
-        $response->getContent()->willReturn(json_encode(array("packageNames" => ["foo/bar","bar/foo"])));
+        $response->getContent()->willReturn(json_encode(array('packageNames' => ['foo/bar','bar/foo'])));
 
-        $this->getPackagesList()->shouldReturn(['foo/bar', 'bar/foo']);
+        $this->getPackagesList()->shouldReturn(['foo/bar','bar/foo']);
     }
 
     function it_must_return_null_if_package_doesnt_exist($browser, Response $response)

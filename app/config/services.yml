@@ -27,8 +27,8 @@ services:
         class: AppBundle\Provider\Package\Factory
         public: false
 
-    app.provider.package.chain:
-        class: AppBundle\Provider\Package\Chain
+    app.provider.package.strategy:
+        class: AppBundle\Provider\Package\Strategy
         arguments:
             - ["@app.provider.package.doctrine", "@app.provider.package.factory"]
         public: false
@@ -36,11 +36,37 @@ services:
     app.provider.package.cache:
         class: AppBundle\Provider\Package\Cache
         arguments:
-            - "@app.provider.package.chain"
+            - "@app.provider.package.strategy"
         public: false
 
     app.provider.package:
         alias: app.provider.package.cache
+        public: true
+
+    app.hydrator.package.scalar:
+        class: AppBundle\Hydrator\Package\Scalar
+        public: false
+
+    app.hydrator.package.requirement:
+        class: AppBundle\Hydrator\Package\Requirement
+        arguments:
+           - "@app.provider.package"
+        public: false
+
+    app.hydrator.package.requirementdev:
+        class: AppBundle\Hydrator\Package\RequirementDev
+        arguments:
+           - "@app.provider.package"
+        public: false
+
+    app.hydrator.package.chain:
+        class: AppBundle\Hydrator\Package\Chain
+        arguments:
+            - ["@app.hydrator.package.scalar", "@app.hydrator.package.requirement", "@app.hydrator.package.requirementdev"]
+        public: false
+
+    app.hydrator.package:
+        alias: app.hydrator.package.chain
         public: true
 
     buzz.browser:
