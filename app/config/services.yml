@@ -4,6 +4,71 @@ parameters:
 #    parameter_name: value
 
 services:
-#    service_name:
-#        class: AppBundle\Directory\ClassName
-#        arguments: ["@another_service_name", "plain_value", "%parameter_name%"]
+    app.packagist.client:
+        class: AppBundle\Packagist\Client
+        arguments: ["@buzz.browser"]
+        public: true
+
+    app.entity.package_repository:
+        class: Doctrine\Common\Persistence\ObjectRepository
+        factory:
+            - "@doctrine"
+            - "getRepository"
+        arguments:
+            - AppBundle\Entity\Package
+        public: false
+
+    app.provider.package.doctrine:
+        class: AppBundle\Provider\Package\Doctrine
+        arguments: ["@app.entity.package_repository"]
+        public: false
+
+    app.provider.package.factory:
+        class: AppBundle\Provider\Package\Factory
+        public: false
+
+    app.provider.package.strategy:
+        class: AppBundle\Provider\Package\Strategy
+        arguments:
+            - ["@app.provider.package.doctrine", "@app.provider.package.factory"]
+        public: false
+
+    app.provider.package.cache:
+        class: AppBundle\Provider\Package\Cache
+        arguments:
+            - "@app.provider.package.strategy"
+        public: false
+
+    app.provider.package:
+        alias: app.provider.package.cache
+        public: true
+
+    app.hydrator.package.scalar:
+        class: AppBundle\Hydrator\Package\Scalar
+        public: false
+
+    app.hydrator.package.requirement:
+        class: AppBundle\Hydrator\Package\Requirement
+        arguments:
+           - "@app.provider.package"
+        public: false
+
+    app.hydrator.package.requirementdev:
+        class: AppBundle\Hydrator\Package\RequirementDev
+        arguments:
+           - "@app.provider.package"
+        public: false
+
+    app.hydrator.package.chain:
+        class: AppBundle\Hydrator\Package\Chain
+        arguments:
+            - ["@app.hydrator.package.scalar", "@app.hydrator.package.requirement", "@app.hydrator.package.requirementdev"]
+        public: false
+
+    app.hydrator.package:
+        alias: app.hydrator.package.chain
+        public: true
+
+    buzz.browser:
+        class: Buzz\Browser
+        public: false
